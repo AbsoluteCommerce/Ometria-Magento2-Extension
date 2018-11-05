@@ -4,6 +4,8 @@ use Ometria\Api\Helper\Format\V1\Products as Helper;
 use \Ometria\Api\Controller\V1\Base;
 class Products extends Base
 {
+    const PRODUCT_TYPE_IDX = 'magento_product_type';
+
     protected $resultJsonFactory;
     protected $apiHelperServiceFilterable;
     protected $productRepository;
@@ -25,13 +27,14 @@ class Products extends Base
     protected $request;
     protected $directoryHelper;
     protected $storeUrlHelper;
-
     protected $storeIdCache=false;
+    protected $productTypeFactory;
 
     /**
     * Prevent twice joining visibility if its added as filter
     */
     protected $needsVisibilityJoin;
+    protected $productTypeNames;
 
 	public function __construct(
 		\Magento\Framework\App\Action\Context $context,
@@ -51,8 +54,8 @@ class Products extends Base
         \Magento\Catalog\Model\ProductFactory $productFactory,
         \Magento\Framework\App\ResourceConnection $resourceConnection,
         \Magento\Directory\Helper\Data $directoryHelper,
-        \Ometria\Api\Helper\StoreUrl $storeUrlHelper
-
+        \Ometria\Api\Helper\StoreUrl $storeUrlHelper,
+        \Magento\Catalog\Model\Product\TypeFactory $productTypeFactory
 	) {
 		parent::__construct($context);
 		$this->searchCriteriaBuilder      = $searchCriteriaBuilder;
@@ -73,6 +76,7 @@ class Products extends Base
 		$this->resourceConnection         = $resourceConnection;
 		$this->directoryHelper            = $directoryHelper;
 		$this->storeUrlHelper             = $storeUrlHelper;
+        $this->productTypeFactory         = $productTypeFactory;
 	}
 
 	protected function getArrayKey($array, $key)
@@ -179,6 +183,11 @@ class Products extends Base
         {
             $tmp['attributes'][] = $category;
         }
+
+        if ($productTypeData = $this->getProductTypeData($item)) {
+            $tmp['attributes'][] = $productTypeData;
+        }
+
         return $tmp;
 	}
 
@@ -476,5 +485,59 @@ class Products extends Base
         }
 
         return $price;
+    }
+
+    /**
+     * @param $item
+     * @return array
+     */
+    protected function getProductTypeData($item)
+    {
+        $typeId = $this->getArrayKey($item, 'type_id');
+        $typeName = $this->getProductTypeNameById($typeId);
+
+        return [
+            'type' => self::PRODUCT_TYPE_IDX,
+            'value' => $typeId,
+            'label' => $typeName
+        ];
+    }
+
+    /**
+     * @param $typeId
+     * @return string
+     */
+    protected function getProductTypeNameById($typeId)
+    {
+        $typeNames = $this->getProductTypeNames();
+
+        if (isset($typeNames[$typeId])) {
+            $name = $typeNames[$typeId];
+        }
+        else {
+            // Default to uppercased type_id (this should never happen).
+            $name = ucwords($typeId);
+        }
+
+        return $name;
+    }
+
+    /**
+     * Retrieve array of product type id top name mappings
+     * @return mixed
+     */
+    protected function getProductTypeNames()
+    {
+        if (!isset($this->productTypeNames)) {
+            $types = $this->productTypeFactory->create()->getTypes();
+
+            foreach ($types as $type) {
+                if (isset($type['name']) && isset($type['label'])) {
+                    $this->productTypeNames[$type['name']] = $type['label']->getText();
+                }
+            }
+        }
+
+        return $this->productTypeNames;
     }
 }
