@@ -27,6 +27,7 @@ class Products extends Base
     protected $request;
     protected $directoryHelper;
     protected $storeUrlHelper;
+
     protected $storeIdCache=false;
     protected $productTypeFactory;
 
@@ -56,6 +57,7 @@ class Products extends Base
         \Magento\Directory\Helper\Data $directoryHelper,
         \Ometria\Api\Helper\StoreUrl $storeUrlHelper,
         \Magento\Catalog\Model\Product\TypeFactory $productTypeFactory
+
 	) {
 		parent::__construct($context);
 		$this->searchCriteriaBuilder      = $searchCriteriaBuilder;
